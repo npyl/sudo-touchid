@@ -45,7 +45,7 @@ int touchid_verify(struct passwd *pw, char *pass, sudo_auth *auth, struct sudo_c
 
 static sudo_auth auth_switch[] = {
     AUTH_ENTRY("touchid", FLAG_STANDALONE, NULL, touchid_setup, touchid_verify, NULL, NULL, NULL)
-    
+
     /* Standalone entries first */
 #ifdef HAVE_AIXAUTH
     AUTH_ENTRY("aixauth", FLAG_STANDALONE, sudo_aix_init, NULL, sudo_aix_verify, sudo_aix_cleanup, NULL, NULL)
@@ -65,7 +65,7 @@ static sudo_auth auth_switch[] = {
 #ifdef HAVE_BSD_AUTH_H
     AUTH_ENTRY("bsdauth", FLAG_STANDALONE, bsdauth_init, NULL, bsdauth_verify, bsdauth_cleanup, NULL, NULL)
 #endif
-    
+
     /* Non-standalone entries */
 #ifndef WITHOUT_PASSWD
     AUTH_ENTRY("passwd", 0, sudo_passwd_init, NULL, sudo_passwd_verify, sudo_passwd_cleanup, NULL, NULL)
@@ -103,10 +103,10 @@ sudo_auth_init(struct passwd *pw)
     sudo_auth *auth;
     int status = AUTH_SUCCESS;
     debug_decl(sudo_auth_init, SUDOERS_DEBUG_AUTH)
-    
+
     if (auth_switch[0].name == NULL)
         debug_return_int(0);
-    
+
     /* Initialize auth methods and unconfigure the method if necessary. */
     for (auth = auth_switch; auth->name; auth++) {
         if (auth->init && !IS_DISABLED(auth)) {
@@ -118,12 +118,12 @@ sudo_auth_init(struct passwd *pw)
                 break;		/* assume error msg already printed */
         }
     }
-    
+
     /*
      * Make sure we haven't mixed standalone and shared auth methods.
      * If there are multiple standalone methods, only use the first one.
      */
-    
+
     if ((standalone = IS_STANDALONE(&auth_switch[0]))) {
         bool found = false;
         for (auth = auth_switch; auth->name; auth++) {
@@ -146,7 +146,7 @@ sudo_auth_init(struct passwd *pw)
             SET(auth->flags, FLAG_DISABLED);
         }
     }
-    
+
     /* Set FLAG_ONEANDONLY if there is only one auth method. */
     for (auth = auth_switch; auth->name; auth++) {
         /* Find first enabled auth method. */
@@ -162,7 +162,7 @@ sudo_auth_init(struct passwd *pw)
             break;
         }
     }
-    
+
     debug_return_int(status == AUTH_FATAL ? -1 : 0);
 }
 
@@ -176,7 +176,7 @@ sudo_auth_cleanup(struct passwd *pw)
     sudo_auth *auth;
     int status = AUTH_SUCCESS;
     debug_decl(sudo_auth_cleanup, SUDOERS_DEBUG_AUTH)
-    
+
     /* Call cleanup routines. */
     for (auth = auth_switch; auth->name; auth++) {
         if (auth->cleanup && !IS_DISABLED(auth)) {
@@ -193,13 +193,13 @@ pass_warn(void)
 {
     const char *warning = def_badpass_message;
     debug_decl(pass_warn, SUDOERS_DEBUG_AUTH)
-    
+
 #ifdef INSULT
     if (def_insults)
         warning = INSULT;
 #endif
     sudo_printf(SUDO_CONV_ERROR_MSG, "%s\n", warning);
-    
+
     debug_return;
 }
 
@@ -207,7 +207,7 @@ static bool
 user_interrupted(void)
 {
     sigset_t mask;
-    
+
     return (sigpending(&mask) == 0 &&
             (sigismember(&mask, SIGINT) || sigismember(&mask, SIGQUIT)));
 }
@@ -226,7 +226,7 @@ verify_user(struct passwd *pw, char *prompt, int validated,
     sigset_t mask, omask;
     sigaction_t sa, saved_sigtstp;
     debug_decl(verify_user, SUDOERS_DEBUG_AUTH)
-    
+
     /* Make sure we have at least one auth method. */
     if (auth_switch[0].name == NULL) {
         audit_failure(NewArgc, NewArgv, N_("no authentication methods"));
@@ -236,13 +236,13 @@ verify_user(struct passwd *pw, char *prompt, int validated,
                         "--disable-authentication configure option."));
         debug_return_int(-1);
     }
-    
+
     /* Enable suspend during password entry. */
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     sa.sa_handler = SIG_DFL;
     (void) sigaction(SIGTSTP, &sa, &saved_sigtstp);
-    
+
     /*
      * We treat authentication as a critical section and block
      * keyboard-generated signals such as SIGINT and SIGQUIT
@@ -253,18 +253,18 @@ verify_user(struct passwd *pw, char *prompt, int validated,
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGQUIT);
     (void) sigprocmask(SIG_BLOCK, &mask, &omask);
-    
+
     for (ntries = 0; ntries < def_passwd_tries; ntries++) {
         int num_methods = 0;
         char *pass = NULL;
-        
+
         /* If user attempted to interrupt password verify, quit now. */
         if (user_interrupted())
             goto done;
-        
+
         if (ntries != 0)
             pass_warn();
-        
+
         /* Do any per-method setup and unconfigure the method if needed */
         for (auth = auth_switch; auth->name; auth++) {
             if (IS_DISABLED(auth))
@@ -284,7 +284,7 @@ verify_user(struct passwd *pw, char *prompt, int validated,
                          N_("Unable to initialize authentication methods."));
             debug_return_int(-1);
         }
-        
+
         /* Get the password unless the auth function will do it for us */
         if (!standalone) {
             pass = auth_getpass(prompt, def_passwd_timeout * 60,
@@ -292,12 +292,12 @@ verify_user(struct passwd *pw, char *prompt, int validated,
             if (pass == NULL)
                 break;
         }
-        
+
         /* Call authentication functions. */
         for (auth = auth_switch; auth->name; auth++) {
             if (IS_DISABLED(auth))
                 continue;
-            
+
             success = auth->status =
             (auth->verify)(pw, standalone ? prompt : pass, auth, callback);
             if (success != AUTH_FAILURE)
@@ -307,16 +307,16 @@ verify_user(struct passwd *pw, char *prompt, int validated,
             memset_s(pass, SUDO_CONV_REPL_MAX, 0, strlen(pass));
             free(pass);
         }
-        
+
         if (success != AUTH_FAILURE)
             goto done;
     }
-    
+
 done:
     /* Restore signal handlers and signal mask. */
     (void) sigaction(SIGTSTP, &saved_sigtstp, NULL);
     (void) sigprocmask(SIG_SETMASK, &omask, NULL);
-    
+
     switch (success) {
         case AUTH_SUCCESS:
             rval = true;
@@ -334,7 +334,7 @@ done:
             rval = -1;
             break;
     }
-    
+
     debug_return_int(rval);
 }
 
@@ -348,7 +348,7 @@ sudo_auth_begin_session(struct passwd *pw, char **user_env[])
     sudo_auth *auth;
     int status = AUTH_SUCCESS;
     debug_decl(sudo_auth_begin_session, SUDOERS_DEBUG_AUTH)
-    
+
     for (auth = auth_switch; auth->name; auth++) {
         if (auth->begin_session && !IS_DISABLED(auth)) {
             status = (auth->begin_session)(pw, user_env, auth);
@@ -365,7 +365,7 @@ sudo_auth_needs_end_session(void)
     sudo_auth *auth;
     bool needed = false;
     debug_decl(sudo_auth_needs_end_session, SUDOERS_DEBUG_AUTH)
-    
+
     for (auth = auth_switch; auth->name; auth++) {
         if (auth->end_session && !IS_DISABLED(auth)) {
             needed = true;
@@ -385,7 +385,7 @@ sudo_auth_end_session(struct passwd *pw)
     sudo_auth *auth;
     int status = AUTH_SUCCESS;
     debug_decl(sudo_auth_end_session, SUDOERS_DEBUG_AUTH)
-    
+
     for (auth = auth_switch; auth->name; auth++) {
         if (auth->end_session && !IS_DISABLED(auth)) {
             status = (auth->end_session)(pw, auth);
@@ -409,22 +409,22 @@ auth_getpass(const char *prompt, int timeout, int type,
     struct sudo_conv_reply repl;
     sigset_t mask, omask;
     debug_decl(auth_getpass, SUDOERS_DEBUG_AUTH)
-    
+
     /* Mask user input if pwfeedback set and echo is off. */
     if (type == SUDO_CONV_PROMPT_ECHO_OFF && def_pwfeedback)
         type = SUDO_CONV_PROMPT_MASK;
-    
+
     /* If visiblepw set, do not error out if there is no tty. */
     if (def_visiblepw)
         type |= SUDO_CONV_PROMPT_ECHO_OK;
-    
+
     /* Unblock SIGINT and SIGQUIT during password entry. */
     /* XXX - do in tgetpass() itself instead? */
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGQUIT);
     (void) sigprocmask(SIG_UNBLOCK, &mask, &omask);
-    
+
     /* Call conversation function. */
     memset(&msg, 0, sizeof(msg));
     msg.msg_type = type;
@@ -433,10 +433,10 @@ auth_getpass(const char *prompt, int timeout, int type,
     memset(&repl, 0, sizeof(repl));
     sudo_conv(1, &msg, &repl, callback);
     /* XXX - check for ENOTTY? */
-    
+
     /* Restore previous signal mask. */
     (void) sigprocmask(SIG_SETMASK, &omask, NULL);
-    
+
     debug_return_str_masked(repl.reply);
 }
 
@@ -445,12 +445,12 @@ dump_auth_methods(void)
 {
     sudo_auth *auth;
     debug_decl(dump_auth_methods, SUDOERS_DEBUG_AUTH)
-    
+
     sudo_printf(SUDO_CONV_INFO_MSG, _("Authentication methods:"));
     for (auth = auth_switch; auth->name; auth++)
         sudo_printf(SUDO_CONV_INFO_MSG, " '%s'", auth->name);
     sudo_printf(SUDO_CONV_INFO_MSG, "\n");
-    
+
     debug_return;
 }
 
@@ -470,9 +470,8 @@ int
 touchid_setup(struct passwd *pw, char **prompt, sudo_auth *auth) {
     @try {
         LAContext *context = [[LAContext alloc] init];
-        BOOL canAuthenticate =
-            [context canEvaluatePolicy:kAuthPolicy error:nil] ||
-            [context canEvaluatePolicy:kAuthPolicyFallback error:nil];
+        BOOL canAuthenticate = [context canEvaluatePolicy:kAuthPolicy error:nil]
+                            || [context canEvaluatePolicy:kAuthPolicyFallback error:nil];
         [context release];
         return canAuthenticate ? AUTH_SUCCESS : AUTH_FATAL;
     }
@@ -481,7 +480,7 @@ touchid_setup(struct passwd *pw, char **prompt, sudo_auth *auth) {
         sudo_printf(SUDO_CONV_INFO_MSG, _("2"));
         return AUTH_FATAL;
     }
-    
+
 }
 
 int
@@ -492,7 +491,7 @@ touchid_verify(struct passwd *pw, char *pass, sudo_auth *auth, struct sudo_conv_
         [context evaluatePolicy:(result != kTouchIDResultFallback ? kAuthPolicy : kAuthPolicyFallback) localizedReason:@"authenticate a privileged operation" reply:^(BOOL success, NSError *error) {
             result = success ? kTouchIDResultAllowed : kTouchIDResultFailed;
             switch (error.code) {
-                case LAErrorTouchIDNotAvailable:
+                case LAErrorBiometryNotAvailable:
                 case LAErrorUserFallback:
                     result = kTouchIDResultFallback;
                     break;
@@ -502,16 +501,16 @@ touchid_verify(struct passwd *pw, char *pass, sudo_auth *auth, struct sudo_conv_
             }
             CFRunLoopWakeUp(CFRunLoopGetCurrent());
         }];
-        
+
         result = kTouchIDResultNone;
 
         while (result == kTouchIDResultNone) {
             CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
         }
-        
+
         [context release];
     }
-    
+
     switch (result) {
         case kTouchIDResultCancel:
             return AUTH_FATAL;
